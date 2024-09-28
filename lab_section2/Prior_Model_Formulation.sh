@@ -7,6 +7,22 @@ mv ncpe_img.tif output
 # mv color.tif output
 echo ""
 
+# Perform ICD optimization on the noisy image img04.tif
+echo "Performing ICD optimization on the noisy image img04.tif"
+../bin/ICD_opt ../images/img04g.tif > output/logs.txt
+mv noisy_img.tif output
+mv MAP_est_img_sigma_x_1.tif output
+mv MAP_est_img_sigma_x_5.tif output
+mv MAP_est_img_sigma_x_1_5.tif output
+
+mv costs_sigma_1.txt output
+mv costs_sigma_5.txt output
+mv costs_sigma_1_5.txt output
+
+# Perform ICD optimization on the blurred and noisy image img04.tif
+echo "Perform ICD optimization on the blurred and noisy image img04.tif"
+../bin/ICD_BN_opt ../images/img04g.tif # > output/h_mat.txt
+mv noisy_blurred_img.tif output
 
 # Run this matlab script to plot the data
 # matlab plot_sigma.m

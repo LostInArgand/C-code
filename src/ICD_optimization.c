@@ -9,7 +9,8 @@
 #define MIN(x, y) (x < y ? x : y)
 
 void error(char *name);
-bool valid(int32_t x, int32_t y, int32_t N, int32_t M);
+// void standard_ICD(int32_t K, struct TIFF_img *input_img, struct TIFF_img *y, double cost1, double cost2, double sigma_x_sq, double sigma_w_sq, FILE *file, double **MAP_est_x, struct Neighbor *neighborhood);
+// bool valid(int32_t x, int32_t y, int32_t N, int32_t M);
 
 struct Neighbor{
     int32_t x;
@@ -19,25 +20,25 @@ struct Neighbor{
 
 int main (int argc, char **argv) {
     FILE *fp;
-    struct TIFF_img input_img, green_img, color_img, noisy_img;
-    double **img;
-    double ncpe_pixel;
-    int32_t i,j,pixel;
+    struct TIFF_img input_img, noisy_img, MAP_est_img;
+    double **img,**MAP_est_x;
+    double noisy_pixel, sigma_x_sq, sigma_x_sq_hat, sigma_w_sq, temp, final_cost;
+    int32_t i,j,k,d, K, N;
     struct Neighbor neighborhood[8];
 
-    // /* Define Neighborhood */
-    // int k = 0;
-    // for(i=-1; i<=1; i++){
-    //     for(j=-1; j<=1; j++){
-    //         if(i==0 && j==0) continue; // Pixel itself is not a neighbor
-    //         neighborhood[k].x = i;
-    //         neighborhood[k].y = j;
-    //         neighborhood[k].g_inv = 6.0 * (abs(i) + abs(j));
-    //         // printf("%d\n", k);
-    //         // printf("%d %d %f\n", neighborhood[k].x, neighborhood[k].y, neighborhood[k].g_inv);
-    //         k++;
-    //     }
-    // }
+    /* Define Neighborhood */
+    k = 0;
+    for(i=-1; i<=1; i++){
+        for(j=-1; j<=1; j++){
+            if(i==0 && j==0) continue; // Pixel itself is not a neighbor
+            neighborhood[k].x = i;
+            neighborhood[k].y = j;
+            neighborhood[k].g_inv = 6.0 * (abs(i) + abs(j));
+            // printf("%d\n", k);
+            // printf("%d %d %f\n", neighborhood[k].x, neighborhood[k].y, neighborhood[k].g_inv);
+            k++;
+        }
+    }
 
     if ( argc != 2 ) error( argv[0] );
 
@@ -77,66 +78,320 @@ int main (int argc, char **argv) {
     /* to allocate a full color image use type 'c' */
     get_TIFF ( &noisy_img, input_img.height, input_img.width, 'g' );
 
-    /* Computing the non causal prediction filter */
+    /* Set seed for random noise generator */
+    srandom2(1);
+
+    /* Adding noise to the image */
     for ( i = 0; i < input_img.height; i++ ){
         for ( j = 0; j < input_img.width; j++ ) {
-            ncpe_pixel = img[i][j];
-            for(int32_t k = 0; k < 8; k++){
-                ncpe_pixel -= img[(input_img.height + neighborhood[k].x + i) % input_img.height][(input_img.width + neighborhood[k].y + j) % input_img.width] / neighborhood[k].g_inv;
-            }
-            pixel = (int32_t)(ncpe_pixel + 127.0);
-            ncpe_img.mono[i][j] = MAX(MIN(pixel, 255), 0);
+            noisy_pixel = img[i][j] + 16.0 * normal(); /* Add noise N(0, 16^2) to image */;
+            noisy_img.mono[i][j] = MAX(MIN((int32_t)noisy_pixel, 255), 0);
         }
     }
 
-    /* open green image file */
-    if ( ( fp = fopen ( "ncpe_img.tif", "wb" ) ) == NULL ) {
+    /* open noisy image file */
+    if ( ( fp = fopen ( "noisy_img.tif", "wb" ) ) == NULL ) {
         fprintf ( stderr, "cannot open file ncpe_img.tif\n");
         exit ( 1 );
     }
 
-    /* write green image */
-    if ( write_TIFF ( fp, &ncpe_img ) ) {
+    /* write noisy image */
+    if ( write_TIFF ( fp, &noisy_img ) ) {
         fprintf ( stderr, "error writing TIFF file %s\n", argv[2] );
         exit ( 1 );
     }
 
-    /* close green image file */
+    /* close noisy image file */
     fclose ( fp );
 
-    /* ML estimator for p values between 0.1 to 2*/
-    double p = 0.1, dp = 0.1, sigma;
-    double **sigmas, **ps;
+    K = 20;
 
-    /* allocate memory */
-    int32_t NN = (int32_t)((2 - 0.1) / p);
-    int32_t ind = 0;
-    sigmas = get_spc(NN, sizeof(double));
-    ps = get_spc(NN, sizeof(double));
+    /* Get the estimate sigma_x_sq_hat */
+    sigma_x_sq_hat = 0;
+    N = input_img.height * input_img.width;
+    for(i = 0; i < input_img.height; i++){
+        for(j = 0; j < input_img.width; j++){
+            for(k = 0; k < 8; k++){
+                temp = fabs(img[i][j] - img[(input_img.height + neighborhood[k].x + i) % input_img.height][(input_img.width + neighborhood[k].y + j) % input_img.width]);
+                sigma_x_sq_hat += pow(temp, 2) / neighborhood[k].g_inv;
+            }
+        }
+    }
 
-    while(p <= 2){
-        sigma = 0;
-        for ( i = 0; i < input_img.height; i++ ){
-            for ( j = 0; j < input_img.width; j++ ){
-                for(int32_t k = 0; k < 8; k++){
-                    /* avoid boundary conditions */
-                    if(valid(neighborhood[k].x + i, neighborhood[k].y + j, input_img.height, input_img.width)){
-                        pixel = abs(img[i][j] - img[neighborhood[k].x + i][neighborhood[k].y + j]);
-                        pixel = pow(pixel, p);
-                        sigma += pixel / neighborhood[k].g_inv;
-                        // fprintf(stdout, "%g\n", sigma);
-                    }
+    sigma_x_sq_hat /= (double) N;
+
+    sigma_w_sq = 16.0 * 16.0;
+    sigma_x_sq = sigma_x_sq_hat;
+
+    printf("%f %f\n",sigma_w_sq, sigma_x_sq);
+
+    /* Allocate image of double precision floats */
+    MAP_est_x = (double **)get_img(input_img.width,input_img.height,sizeof(double));
+
+    /* For each i ∈ S, initialize with ML estimate */
+    for(i = 0; i < input_img.height; i++){
+        for(j = 0; j < input_img.width; j++){
+            MAP_est_x[i][j] = noisy_img.mono[i][j];
+        }
+    }
+
+    double cost1 = 0.0;
+    double cost2 = 0.0;
+    for(i = 0; i < input_img.height; i++){
+        for(j = 0; j < input_img.width; j++){
+            for(k = 0; k < 8; k++){
+                cost2 += pow(MAP_est_x[i][j] - MAP_est_x[(input_img.height + neighborhood[k].x + i) % input_img.height][(input_img.width + neighborhood[k].y + j) % input_img.width], 2) / neighborhood[k].g_inv;
+            }
+        }
+    }
+
+    final_cost = cost2 / (2.0 * sigma_x_sq);
+
+    FILE *file = fopen("costs_sigma_1.txt", "w");
+    if (file == NULL) {
+        perror("Error opening file");
+        return -1;
+    }
+    fprintf(file, "%d %f\n", 0, final_cost);
+
+    for (k = 0; k < K; k++){
+        cost1 = 0.0;
+        cost2 = 0.0;
+        for(i = 0; i < input_img.height; i++){
+            for(j = 0; j < input_img.width; j++){
+                temp = 0;
+                for(d = 0; d < 8; d++){
+                    double x_j = MAP_est_x[(input_img.height + neighborhood[d].x + i) % input_img.height][(input_img.width + neighborhood[d].y + j) % input_img.width];
+                    temp += x_j / neighborhood[d].g_inv;
+                }
+                temp *= (sigma_w_sq / sigma_x_sq);
+                temp += (double) noisy_img.mono[i][j];
+                temp /= (1 + (sigma_w_sq / sigma_x_sq));
+                // printf("%f %f\n", MAP_est_x[i][j], temp);
+                MAP_est_x[i][j] = MAX(0, temp);
+
+                /* Calculate cost 1*/
+                cost1 += pow((double) noisy_img.mono[i][j] - MAP_est_x[i][j], 2);
+
+                /* Calculate cost 2*/
+                for(d = 0; d < 8; d++){
+                    cost2 += pow(MAP_est_x[i][j] - MAP_est_x[(input_img.height + neighborhood[d].x + i) % input_img.height][(input_img.width + neighborhood[d].y + j) % input_img.width], 2) / neighborhood[d].g_inv;
                 }
             }
         }
-        sigma /= 8.0;
-        sigma = pow(sigma, 1.0/p);
-
-        /* Output the sigma and p values*/
-        fprintf ( stdout, "%g, %g; \n", p, sigma );
-        p += dp;
+        final_cost = (cost1 / (2 * sigma_w_sq)) + (cost2 / (2 * sigma_x_sq));
+        fprintf(file, "%d %f\n", k + 1, final_cost);
     }
 
+    /* set up structure for output achromatic image */
+    /* to allocate a full color image use type 'c' */
+    get_TIFF ( &MAP_est_img, input_img.height, input_img.width, 'g' );
+
+    /* Print out the resulting MAP estimate */
+    for(i = 0; i < input_img.height; i++){
+        for(j = 0; j < input_img.width; j++){
+            MAP_est_img.mono[i][j] = (int32_t)MIN(255.0, MAP_est_x[i][j]);
+        }
+    }
+
+    /* open MAP estimate image file */
+    if ( ( fp = fopen ( "MAP_est_img_sigma_x_1.tif", "wb" ) ) == NULL ) {
+        fprintf ( stderr, "cannot open file MAP_est_img.tif\n");
+        exit ( 1 );
+    }
+
+    /* write MAP estimate image */
+    if ( write_TIFF ( fp, &MAP_est_img ) ) {
+        fprintf ( stderr, "error writing TIFF file %s\n", argv[2] );
+        exit ( 1 );
+    }
+
+    /* close MAP estimate image file */
+    fclose ( fp );
+
+
+    /******************************* Let's change the value of sigma_x *******************************/
+    sigma_x_sq = 5 * sigma_x_sq_hat;
+
+    printf("%f %f\n",sigma_w_sq, sigma_x_sq);
+
+    /* For each i ∈ S, initialize with ML estimate */
+    for(i = 0; i < input_img.height; i++){
+        for(j = 0; j < input_img.width; j++){
+            MAP_est_x[i][j] = noisy_img.mono[i][j];
+        }
+    }
+
+    /* Calculate the initial cost */
+    cost1 = 0.0;
+    cost2 = 0.0;
+    for(i = 0; i < input_img.height; i++){
+        for(j = 0; j < input_img.width; j++){
+            for(k = 0; k < 8; k++){
+                cost2 += pow(MAP_est_x[i][j] - MAP_est_x[(input_img.height + neighborhood[k].x + i) % input_img.height][(input_img.width + neighborhood[k].y + j) % input_img.width], 2) / neighborhood[k].g_inv;
+            }
+        }
+    }
+
+    final_cost = cost2 / (2.0 * sigma_x_sq);
+
+    file = fopen("costs_sigma_5.txt", "w");
+    if (file == NULL) {
+        perror("Error opening file");
+        return -1;
+    }
+    fprintf(file, "%d %f\n", 0, final_cost);
+
+    for (k = 0; k < K; k++){
+        cost1 = 0.0;
+        cost2 = 0.0;
+        for(i = 0; i < input_img.height; i++){
+            for(j = 0; j < input_img.width; j++){
+                temp = 0;
+                for(d = 0; d < 8; d++){
+                    double x_j = MAP_est_x[(input_img.height + neighborhood[d].x + i) % input_img.height][(input_img.width + neighborhood[d].y + j) % input_img.width];
+                    temp += x_j / neighborhood[d].g_inv;
+                }
+                temp *= (sigma_w_sq / sigma_x_sq);
+                temp += (double) noisy_img.mono[i][j];
+                temp /= (1 + (sigma_w_sq / sigma_x_sq));
+                // printf("%f %f\n", MAP_est_x[i][j], temp);
+                MAP_est_x[i][j] = MAX(0, temp);
+
+                /* Calculate cost 1*/
+                cost1 += pow((double) noisy_img.mono[i][j] - MAP_est_x[i][j], 2);
+
+                /* Calculate cost 2*/
+                for(d = 0; d < 8; d++){
+                    cost2 += pow(MAP_est_x[i][j] - MAP_est_x[(input_img.height + neighborhood[d].x + i) % input_img.height][(input_img.width + neighborhood[d].y + j) % input_img.width], 2) / neighborhood[d].g_inv;
+                }
+            }
+        }
+        final_cost = (cost1 / (2 * sigma_w_sq)) + (cost2 / (2 * sigma_x_sq));
+        fprintf(file, "%d %f\n", k + 1, final_cost);
+    }
+
+
+    /* set up structure for output achromatic image */
+    /* to allocate a full color image use type 'c' */
+    get_TIFF ( &MAP_est_img, input_img.height, input_img.width, 'g' );
+
+    /* Print out the resulting MAP estimate */
+    for(i = 0; i < input_img.height; i++){
+        for(j = 0; j < input_img.width; j++){
+            MAP_est_img.mono[i][j] = (int32_t)MIN(255.0, MAP_est_x[i][j]);
+        }
+    }
+
+    /* open MAP estimate image file */
+    if ( ( fp = fopen ( "MAP_est_img_sigma_x_5.tif", "wb" ) ) == NULL ) {
+        fprintf ( stderr, "cannot open file MAP_est_img_sigma_x_5.tif\n");
+        exit ( 1 );
+    }
+
+    /* write MAP estimate image */
+    if ( write_TIFF ( fp, &MAP_est_img ) ) {
+        fprintf ( stderr, "error writing TIFF file %s\n", argv[2] );
+        exit ( 1 );
+    }
+
+    /* close MAP estimate image file */
+    fclose ( fp );
+
+
+    /******************************* Let's change the value of sigma_x_sq -> sigma_x_sq = (1/5) * sigma_x_sq_hat *******************************/
+    sigma_x_sq = sigma_x_sq_hat / 5;
+
+    printf("%f %f\n",sigma_w_sq, sigma_x_sq);
+
+    /* For each i ∈ S, initialize with ML estimate */
+    for(i = 0; i < input_img.height; i++){
+        for(j = 0; j < input_img.width; j++){
+            MAP_est_x[i][j] = noisy_img.mono[i][j];
+        }
+    }
+
+    /* Calculate the initial cost */
+    cost1 = 0.0;
+    cost2 = 0.0;
+    for(i = 0; i < input_img.height; i++){
+        for(j = 0; j < input_img.width; j++){
+            for(k = 0; k < 8; k++){
+                cost2 += pow(MAP_est_x[i][j] - MAP_est_x[(input_img.height + neighborhood[k].x + i) % input_img.height][(input_img.width + neighborhood[k].y + j) % input_img.width], 2) / neighborhood[k].g_inv;
+            }
+        }
+    }
+
+    final_cost = cost2 / (2.0 * sigma_x_sq);
+
+    file = fopen("costs_sigma_1_5.txt", "w");
+    if (file == NULL) {
+        perror("Error opening file");
+        return -1;
+    }
+    fprintf(file, "%d %f\n", 0, final_cost);
+
+    for (k = 0; k < K; k++){
+        cost1 = 0.0;
+        cost2 = 0.0;
+        for(i = 0; i < input_img.height; i++){
+            for(j = 0; j < input_img.width; j++){
+                temp = 0;
+                for(d = 0; d < 8; d++){
+                    double x_j = MAP_est_x[(input_img.height + neighborhood[d].x + i) % input_img.height][(input_img.width + neighborhood[d].y + j) % input_img.width];
+                    temp += x_j / neighborhood[d].g_inv;
+                }
+                temp *= (sigma_w_sq / sigma_x_sq);
+                temp += (double) noisy_img.mono[i][j];
+                temp /= (1 + (sigma_w_sq / sigma_x_sq));
+                // printf("%f %f\n", MAP_est_x[i][j], temp);
+                MAP_est_x[i][j] = MAX(0, temp);
+
+                /* Calculate cost 1*/
+                cost1 += pow((double) noisy_img.mono[i][j] - MAP_est_x[i][j], 2);
+
+                /* Calculate cost 2*/
+                for(d = 0; d < 8; d++){
+                    cost2 += pow(MAP_est_x[i][j] - MAP_est_x[(input_img.height + neighborhood[d].x + i) % input_img.height][(input_img.width + neighborhood[d].y + j) % input_img.width], 2) / neighborhood[d].g_inv;
+                }
+            }
+        }
+        final_cost = (cost1 / (2 * sigma_w_sq)) + (cost2 / (2 * sigma_x_sq));
+        fprintf(file, "%d %f\n", k + 1, final_cost);
+    }
+
+
+    /* set up structure for output achromatic image */
+    /* to allocate a full color image use type 'c' */
+    get_TIFF ( &MAP_est_img, input_img.height, input_img.width, 'g' );
+
+    /* Print out the resulting MAP estimate */
+    for(i = 0; i < input_img.height; i++){
+        for(j = 0; j < input_img.width; j++){
+            MAP_est_img.mono[i][j] = (int32_t)MIN(255.0, MAP_est_x[i][j]);
+        }
+    }
+
+    /* open MAP estimate image file */
+    if ( ( fp = fopen ( "MAP_est_img_sigma_x_1_5.tif", "wb" ) ) == NULL ) {
+        fprintf ( stderr, "cannot open file MAP_est_img_sigma_x_1_5.tif\n");
+        exit ( 1 );
+    }
+
+    /* write MAP estimate image */
+    if ( write_TIFF ( fp, &MAP_est_img ) ) {
+        fprintf ( stderr, "error writing TIFF file %s\n", argv[2] );
+        exit ( 1 );
+    }
+
+    /* close MAP estimate image file */
+    fclose ( fp );
+
+
+    // standard_ICD(K, &input_img, &noisy_img, cost1, cost2, sigma_x_sq, sigma_w_sq, file, MAP_est_x, neighborhood);
+    
+
+    // printf("Hello Praditha!");
     return(0);
 }
 
@@ -152,9 +407,59 @@ void error(char *name)
     exit(1);
 }
 
-bool valid(int32_t x, int32_t y, int32_t N, int32_t M){
-    if(0 > x || x >= N) return false;
-    if(0 > y || y >= M) return false;
-    return true;
-}
+// bool valid(int32_t x, int32_t y, int32_t N, int32_t M){
+//     if(0 > x || x >= N) return false;
+//     if(0 > y || y >= M) return false;
+//     return true;
+// }
+
+
+// void standard_ICD(int32_t K, struct TIFF_img *input_img, struct TIFF_img *y, double cost1, double cost2, double sigma_x_sq, double sigma_w_sq, FILE *file, double **MAP_est_x, struct Neighbor *neighborhood){
+//     sigma_x_sq = 0;
+//     double temp;
+//     int32_t N = input_img->height * input_img->width;
+//     for(int32_t i = 0; i < input_img->height; i++){
+//         for(int32_t j = 0; j < input_img->width; j++){
+//             for(int32_t k = 0; k < 8; k++){
+//                 temp = fabs(img[i][j] - img[(input_img.height + neighborhood[k].x + i) % input_img.height][(input_img.width + neighborhood[k].y + j) % input_img.width]);
+//                 sigma_x_sq += pow(temp, 2) / neighborhood[k].g_inv;
+//             }
+//         }
+//     }
+
+//     double final_cost = cost2 / (2.0 * sigma_x_sq);
+//     double temp;
+
+//     fprintf(file, "%d %f\n", 0, final_cost);
+
+//     for (int32_t k = 0; k < K; k++){
+//     cost1 = 0.0;
+//     cost2 = 0.0;
+//     for(int32_t i = 0; i < input_img->height; i++){
+//         for(int32_t j = 0; j < input_img->width; j++){
+//             temp = 0;
+//             for(int32_t d = 0; d < 8; d++){
+//                 double x_j = MAP_est_x[(input_img->height + neighborhood[d].x + i) % input_img->height][(input_img->width + neighborhood[d].y + j) % input_img->width];
+//                 temp += x_j / neighborhood[d].g_inv;
+//             }
+//             temp *= (sigma_w_sq / sigma_x_sq);
+//             temp += (double) y->mono[i][j];
+//             temp /= (1 + (sigma_w_sq / sigma_x_sq));
+//             // printf("%f %f\n", MAP_est_x[i][j], temp);
+//             MAP_est_x[i][j] = MAX(0, temp);
+
+//             /* Calculate cost 1*/
+//             cost1 += pow((double) y->mono[i][j] - MAP_est_x[i][j], 2);
+
+//             /* Calculate cost 2*/
+//             for(d = 0; d < 8; d++){
+//                 cost2 += pow(MAP_est_x[i][j] - MAP_est_x[(input_img->height + neighborhood[d].x + i) % input_img->height][(input_img->width + neighborhood[d].y + j) % input_img->width], 2) / neighborhood[d].g_inv;
+//             }
+//         }
+//     }
+//     final_cost = (cost1 / (2 * sigma_w_sq)) + (cost2 / (2 * sigma_x_sq));
+//     fprintf(file, "%d %f\n", k + 1, final_cost);
+//     }
+// }
+
 

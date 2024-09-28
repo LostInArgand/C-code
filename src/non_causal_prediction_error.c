@@ -111,6 +111,7 @@ int main (int argc, char **argv) {
     /* allocate memory */
     int32_t NN = (int32_t)((2 - 0.1) / p);
     int32_t ind = 0;
+    int32_t N = input_img.height * input_img.width;
     sigmas = get_spc(NN, sizeof(double));
     ps = get_spc(NN, sizeof(double));
 
@@ -121,7 +122,7 @@ int main (int argc, char **argv) {
                 for(int32_t k = 0; k < 8; k++){
                     /* avoid boundary conditions */
                     if(valid(neighborhood[k].x + i, neighborhood[k].y + j, input_img.height, input_img.width)){
-                        pixel = abs(img[i][j] - img[neighborhood[k].x + i][neighborhood[k].y + j]);
+                        pixel = fabs(img[i][j] - img[neighborhood[k].x + i][neighborhood[k].y + j]);
                         pixel = pow(pixel, p);
                         sigma += pixel / neighborhood[k].g_inv;
                         // fprintf(stdout, "%g\n", sigma);
@@ -129,7 +130,7 @@ int main (int argc, char **argv) {
                 }
             }
         }
-        sigma /= 8.0;
+        sigma /= N;
         sigma = pow(sigma, 1.0/p);
 
         /* Output the sigma and p values*/

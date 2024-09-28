@@ -3,7 +3,7 @@ CC = gcc
 CFLAGS = -std=c99 -Wall -pedantic
 BIN = ../bin
 
-all: ImageReadWriteExample SurrogateFunctionExample SolveExample NonCausalPredictionError
+all: ImageReadWriteExample SurrogateFunctionExample SolveExample NonCausalPredictionError ICD_optimization ICD_optimization_blurred_and_noisy
 
 clean:
 	/bin/rm *.o $(BIN)/*
@@ -25,4 +25,12 @@ SolveExample: SolveExample.o $(OBJ)
 NonCausalPredictionError: non_causal_prediction_error.o $(OBJ)
 	$(CC) $(CFLAGS) -o ncpe non_causal_prediction_error.o $(OBJ) -lm
 	mv ncpe $(BIN)
+
+ICD_optimization: ICD_optimization.o $(OBJ)
+	$(CC) $(CFLAGS) -o ICD_opt ICD_optimization.o $(OBJ) -lm
+	mv ICD_opt $(BIN)
+
+ICD_optimization_blurred_and_noisy: ICD_optimization_blurred_and_noisy.o $(OBJ)
+	$(CC) $(CFLAGS) -o ICD_BN_opt ICD_optimization_blurred_and_noisy.o $(OBJ) -lm
+	mv ICD_BN_opt $(BIN)
 
