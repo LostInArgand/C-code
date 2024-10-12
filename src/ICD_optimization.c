@@ -9,8 +9,6 @@
 #define MIN(x, y) (x < y ? x : y)
 
 void error(char *name);
-// void standard_ICD(int32_t K, struct TIFF_img *input_img, struct TIFF_img *y, double cost1, double cost2, double sigma_x_sq, double sigma_w_sq, FILE *file, double **MAP_est_x, struct Neighbor *neighborhood);
-// bool valid(int32_t x, int32_t y, int32_t N, int32_t M);
 
 struct Neighbor{
     int32_t x;
@@ -34,8 +32,6 @@ int main (int argc, char **argv) {
             neighborhood[k].x = i;
             neighborhood[k].y = j;
             neighborhood[k].g_inv = 6.0 * (abs(i) + abs(j));
-            // printf("%d\n", k);
-            // printf("%d %d %f\n", neighborhood[k].x, neighborhood[k].y, neighborhood[k].g_inv);
             k++;
         }
     }
@@ -255,7 +251,7 @@ int main (int argc, char **argv) {
                 temp *= (sigma_w_sq / sigma_x_sq);
                 temp += (double) noisy_img.mono[i][j];
                 temp /= (1 + (sigma_w_sq / sigma_x_sq));
-                // printf("%f %f\n", MAP_est_x[i][j], temp);
+
                 MAP_est_x[i][j] = MAX(0, temp);
 
                 /* Calculate cost 1*/
@@ -344,7 +340,7 @@ int main (int argc, char **argv) {
                 temp *= (sigma_w_sq / sigma_x_sq);
                 temp += (double) noisy_img.mono[i][j];
                 temp /= (1 + (sigma_w_sq / sigma_x_sq));
-                // printf("%f %f\n", MAP_est_x[i][j], temp);
+
                 MAP_est_x[i][j] = MAX(0, temp);
 
                 /* Calculate cost 1*/
@@ -406,60 +402,5 @@ void error(char *name)
     printf("that swaps red and green components from the input image");
     exit(1);
 }
-
-// bool valid(int32_t x, int32_t y, int32_t N, int32_t M){
-//     if(0 > x || x >= N) return false;
-//     if(0 > y || y >= M) return false;
-//     return true;
-// }
-
-
-// void standard_ICD(int32_t K, struct TIFF_img *input_img, struct TIFF_img *y, double cost1, double cost2, double sigma_x_sq, double sigma_w_sq, FILE *file, double **MAP_est_x, struct Neighbor *neighborhood){
-//     sigma_x_sq = 0;
-//     double temp;
-//     int32_t N = input_img->height * input_img->width;
-//     for(int32_t i = 0; i < input_img->height; i++){
-//         for(int32_t j = 0; j < input_img->width; j++){
-//             for(int32_t k = 0; k < 8; k++){
-//                 temp = fabs(img[i][j] - img[(input_img.height + neighborhood[k].x + i) % input_img.height][(input_img.width + neighborhood[k].y + j) % input_img.width]);
-//                 sigma_x_sq += pow(temp, 2) / neighborhood[k].g_inv;
-//             }
-//         }
-//     }
-
-//     double final_cost = cost2 / (2.0 * sigma_x_sq);
-//     double temp;
-
-//     fprintf(file, "%d %f\n", 0, final_cost);
-
-//     for (int32_t k = 0; k < K; k++){
-//     cost1 = 0.0;
-//     cost2 = 0.0;
-//     for(int32_t i = 0; i < input_img->height; i++){
-//         for(int32_t j = 0; j < input_img->width; j++){
-//             temp = 0;
-//             for(int32_t d = 0; d < 8; d++){
-//                 double x_j = MAP_est_x[(input_img->height + neighborhood[d].x + i) % input_img->height][(input_img->width + neighborhood[d].y + j) % input_img->width];
-//                 temp += x_j / neighborhood[d].g_inv;
-//             }
-//             temp *= (sigma_w_sq / sigma_x_sq);
-//             temp += (double) y->mono[i][j];
-//             temp /= (1 + (sigma_w_sq / sigma_x_sq));
-//             // printf("%f %f\n", MAP_est_x[i][j], temp);
-//             MAP_est_x[i][j] = MAX(0, temp);
-
-//             /* Calculate cost 1*/
-//             cost1 += pow((double) y->mono[i][j] - MAP_est_x[i][j], 2);
-
-//             /* Calculate cost 2*/
-//             for(d = 0; d < 8; d++){
-//                 cost2 += pow(MAP_est_x[i][j] - MAP_est_x[(input_img->height + neighborhood[d].x + i) % input_img->height][(input_img->width + neighborhood[d].y + j) % input_img->width], 2) / neighborhood[d].g_inv;
-//             }
-//         }
-//     }
-//     final_cost = (cost1 / (2 * sigma_w_sq)) + (cost2 / (2 * sigma_x_sq));
-//     fprintf(file, "%d %f\n", k + 1, final_cost);
-//     }
-// }
 
 

@@ -21,9 +21,11 @@ mv costs_sigma_1_5.txt output
 
 # Perform ICD optimization on the blurred and noisy image img04.tif
 echo "Perform ICD optimization on the blurred and noisy image img04.tif"
-../bin/ICD_BN_opt ../images/img04g.tif # > output/h_mat.txt
+../bin/ICD_BN_opt ../images/img04g.tif > output/cost_MAP_est_blurred_noisy.txt
 mv noisy_blurred_img.tif output
+mv MAP_est_blurred_noisy_img.tif output
+
 
 # Run this matlab script to plot the data
-# matlab plot_sigma.m
+/Applications/MATLAB_R2024a.app/bin ./output/plot_sigma.m
 

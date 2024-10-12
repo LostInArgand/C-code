@@ -33,8 +33,6 @@ int main (int argc, char **argv) {
             neighborhood[k].x = i;
             neighborhood[k].y = j;
             neighborhood[k].g_inv = 6.0 * (abs(i) + abs(j));
-            // printf("%d\n", k);
-            // printf("%d %d %f\n", neighborhood[k].x, neighborhood[k].y, neighborhood[k].g_inv);
             k++;
         }
     }
@@ -105,17 +103,13 @@ int main (int argc, char **argv) {
     fclose ( fp );
 
     /* ML estimator for p values between 0.1 to 2*/
-    double p = 0.1, dp = 0.1, sigma;
-    double **sigmas, **ps;
+    double p = 0.1, dp = 0.01, sigma;
 
     /* allocate memory */
-    int32_t NN = (int32_t)((2 - 0.1) / p);
     int32_t ind = 0;
     int32_t N = input_img.height * input_img.width;
-    sigmas = get_spc(NN, sizeof(double));
-    ps = get_spc(NN, sizeof(double));
 
-    while(p <= 2){
+    while(p < 2.001){
         sigma = 0;
         for ( i = 0; i < input_img.height; i++ ){
             for ( j = 0; j < input_img.width; j++ ){
