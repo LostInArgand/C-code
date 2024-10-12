@@ -19,11 +19,21 @@ mv costs_sigma_1.txt output
 mv costs_sigma_5.txt output
 mv costs_sigma_1_5.txt output
 
-# Perform ICD optimization on the blurred and noisy image img04.tif
-echo "Perform ICD optimization on the blurred and noisy image img04.tif"
+# Perform ICD optimization on the blurred and noisy image of img04.tif
+echo "Perform ICD optimization on the blurred and noisy image of img04.tif"
 ../bin/ICD_BN_opt ../images/img04g.tif > output/cost_MAP_est_blurred_noisy.txt
 mv noisy_blurred_img.tif output
 mv MAP_est_blurred_noisy_img.tif output
+
+# Perform ICD optimization with a non guassian prior on the blurred and noisy image of img04.tif
+echo "Perform ICD optimization with a non gaussian prior on the blurred and noisy image of img04.tif"
+../bin/non_gauss ../lab_section2/output/noisy_blurred_img.tif > output/cost_MAP_est_non_gauss_blurred_noisy.txt
+mv MAP_est_non_gauss_img.tif output
+
+# Perform ICD optimization with a non guassian prior with majorization on the blurred and noisy image of img04.tif
+echo "Perform ICD optimization with a non gaussian prior with majorization on the blurred and noisy image of img04.tif"
+../bin/non_gauss_with_maj ../lab_section2/output/noisy_blurred_img.tif > output/cost_MAP_est_non_gauss_with_maj_blurred_noisy.txt
+mv MAP_est_non_gauss_with_maj_img.tif output
 
 
 # Run this matlab script to plot the data

@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "randlib.h": "c",
+        "non_gaussian_prior_icd_with_majorization": "cpp"
+    }
+}

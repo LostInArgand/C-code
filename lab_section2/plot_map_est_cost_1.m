@@ -1,6 +1,5 @@
-
-clear all
-close all
+clear;
+close all;
 path = "/Users/pradithaalwis/Documents/Academics/Purdue - PhD/Semester 1/ECE 64100/Labs/MAP_Image_Restoration/C-code/lab_section2/output/cost_MAP_est_blurred_noisy.txt";
 data = load(path);
 data = data';

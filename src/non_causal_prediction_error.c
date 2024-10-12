@@ -124,7 +124,7 @@ int main (int argc, char **argv) {
                 }
             }
         }
-        sigma /= N;
+        sigma /= 2 * N; // Here, we have to divide by 2 since we are considering all the unique unordered pairs (not ordered pairs)
         sigma = pow(sigma, 1.0/p);
 
         /* Output the sigma and p values*/

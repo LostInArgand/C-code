@@ -116,6 +116,7 @@ int main (int argc, char **argv) {
 
     sigma_x_sq_hat /= (double) N;
 
+    sigma_x_sq_hat /= 2.0;  // Here, we have to divide by 2 since we are considering all the unique unordered pairs (not ordered pairs) 
     sigma_w_sq = 16.0 * 16.0;
     sigma_x_sq = sigma_x_sq_hat;
 
@@ -141,7 +142,7 @@ int main (int argc, char **argv) {
         }
     }
 
-    final_cost = cost2 / (2.0 * sigma_x_sq);
+    final_cost = cost2 / (2.0 * 2.0 * sigma_x_sq);  // Here, we have to divide by additional 2 since we are considering all the unique ordered pairs (not unordered pairs)
 
     FILE *file = fopen("costs_sigma_1.txt", "w");
     if (file == NULL) {
@@ -175,7 +176,7 @@ int main (int argc, char **argv) {
                 }
             }
         }
-        final_cost = (cost1 / (2 * sigma_w_sq)) + (cost2 / (2 * sigma_x_sq));
+        final_cost = (cost1 / (2.0 * sigma_w_sq)) + (cost2 / (2.0 * 2.0 * sigma_x_sq));  // Here, we have to divide by 2 since we are considering all the unique unordered pairs (not ordered pairs)
         fprintf(file, "%d %f\n", k + 1, final_cost);
     }
 
@@ -229,7 +230,7 @@ int main (int argc, char **argv) {
         }
     }
 
-    final_cost = cost2 / (2.0 * sigma_x_sq);
+    final_cost = cost2 / (2.0 * 2.0 * sigma_x_sq);  // Here, we have to divide by 2 since we are considering all the unique unordered pairs (not ordered pairs)
 
     file = fopen("costs_sigma_5.txt", "w");
     if (file == NULL) {
@@ -263,7 +264,7 @@ int main (int argc, char **argv) {
                 }
             }
         }
-        final_cost = (cost1 / (2 * sigma_w_sq)) + (cost2 / (2 * sigma_x_sq));
+        final_cost = (cost1 / (2.0 * sigma_w_sq)) + (cost2 / (2.0 * 2.0 * sigma_x_sq));  // Here, we have to divide by 2 since we are considering all the unique unordered pairs (not ordered pairs)
         fprintf(file, "%d %f\n", k + 1, final_cost);
     }
 
@@ -318,7 +319,7 @@ int main (int argc, char **argv) {
         }
     }
 
-    final_cost = cost2 / (2.0 * sigma_x_sq);
+    final_cost = cost2 / (2.0 * 2.0 * sigma_x_sq);  // Here, we have to divide by 2 since we are considering all the unique unordered pairs (not ordered pairs)
 
     file = fopen("costs_sigma_1_5.txt", "w");
     if (file == NULL) {
@@ -352,7 +353,7 @@ int main (int argc, char **argv) {
                 }
             }
         }
-        final_cost = (cost1 / (2 * sigma_w_sq)) + (cost2 / (2 * sigma_x_sq));
+        final_cost = (cost1 / (2.0 * sigma_w_sq)) + (cost2 / (2.0 * 2.0 * sigma_x_sq));
         fprintf(file, "%d %f\n", k + 1, final_cost);
     }
 
