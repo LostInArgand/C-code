@@ -10,7 +10,6 @@
 #define MIN(x, y) (x < y ? x : y)
 
 void error(char *name);
-// double min(double x, double y);
 
 struct Neighbor{
     int32_t x;
@@ -31,7 +30,7 @@ int main (int argc, char **argv) {
     struct TIFF_img input_img, noisy_blurred_img, MAP_est_img;
     double **img,**h,**y_img, **MAP_est_x;
     double *x, *y, *e;
-    double noisy_pixel, sigma_x_p, sigma_x_p_hat, sigma_w_sq, temp, v, theta1, theta2, xi_update, cost1, cost2, total_cost, upper_bound, lower_bound, precision, root;
+    double sigma_x_p, sigma_x_p_hat, sigma_w_sq, temp, v, theta1, theta2, cost1, cost2, total_cost, upper_bound, lower_bound, precision, root;
     int32_t i, j, k, K, N, row, column;
     int err_code;
     struct Neighbor neighborhood[8];
@@ -88,55 +87,6 @@ int main (int argc, char **argv) {
             h[i][j] = (3 - abs(2 - i)) * (3 - abs(2 - j));
         }
     }
-
-
-    // /* Blur the image and add noise to the image */
-    // y_img = (double **)get_img(input_img.width,input_img.height,sizeof(double));
-
-    // /* Convolution with the filter*/
-    // for(i = 0; i < input_img.height; i++){
-    //     for(j = 0; j < input_img.width; j++){
-    //         y_img[i][j] = 0;
-    //         for(int32_t kernel_i = -2; kernel_i <= 2; kernel_i++){
-    //             for(int32_t kernel_j = -2; kernel_j <= 2; kernel_j++){
-    //                 int32_t circ_i = (input_img.height + i + kernel_i) % input_img.height;
-    //                 int32_t circ_j = (input_img.width + j + kernel_j) % input_img.width;
-
-    //                 y_img[i][j] += (h[2 + kernel_i][2 + kernel_j] * img[circ_i][circ_j]) / 81.0;
-    //             }
-    //         }
-    //     }
-    // }
-
-    // /* set up structure for output achromatic image */
-    // /* to allocate a full color image use type 'c' */
-    // get_TIFF ( &noisy_blurred_img, input_img.height, input_img.width, 'g' );
-
-    // /* Set seed for random noise generator */
-    // srandom2(1);
-
-    // /* Adding noise to the image */
-    // for ( i = 0; i < input_img.height; i++ ){
-    //     for ( j = 0; j < input_img.width; j++ ) {
-    //         noisy_pixel = y_img[i][j] + 4 * normal(); /* Add noise N(0, 4^2) to image */;
-    //         noisy_blurred_img.mono[i][j] = MAX(MIN((int32_t)noisy_pixel, 255), 0);
-    //     }
-    // }
-
-    // /* open noisy image file */
-    // if ( ( fp = fopen ( "noisy_blurred_img.tif", "wb" ) ) == NULL ) {
-    //     fprintf ( stderr, "cannot open file ncpe_img.tif\n");
-    //     exit ( 1 );
-    // }
-
-    // /* write noisy image */
-    // if ( write_TIFF ( fp, &noisy_blurred_img ) ) {
-    //     fprintf ( stderr, "error writing TIFF file %s\n", argv[2] );
-    //     exit ( 1 );
-    // }
-
-    // /* close noisy image file */
-    // fclose ( fp );
 
     /* ICD optimization */
     /* Set K = desired number of iterations */
@@ -397,16 +347,6 @@ static double GGMRF_prior_xi_func(double x, void * pblock){
     fvalue += temp / (p->sigma_x_p);
   return fvalue;
 }
-
-// double min(double x, double y){
-//     if(x < y) return x;
-//     return y;
-// }
-
-// double max(double x, double y){
-//     if(x > y) return x;
-//     return y;
-// }
 
 void error(char *name)
 {
